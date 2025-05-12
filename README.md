@@ -173,9 +173,9 @@ jobs:
         with:
           patterns: "./charts/${{ matrix.directory }}/**/*"
 
-      - name: Lint Chart
-        if: steps.check.outputs.has_files == 'true'
-        working-directory: projects/${{ matrix.directory }}
+      - name: Helm lint
+        if: steps.changed-files.outputs.changed_files != '[]'
+        working-directory: ./charts/${{ matrix.directory }}
         run: helm lint .
 ```
 
