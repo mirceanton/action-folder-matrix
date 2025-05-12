@@ -1,23 +1,17 @@
 {
-    "name": "action-folder-matrix",
-    "version": "1.0.0",
-    "description": "GitHub Action to generate a matrix of subdirectories for parallelizing jobs",
-    "main": "dist/index.js",
-    "author": "mirceanton",
-    "license": "MIT",
-    "scripts": {
-        "build": "ncc build index.js -o dist"
-    },
-    "keywords": [
-        "github",
-        "actions",
-        "matrix",
-        "monorepo"
-    ],
-    "dependencies": {
-        "@actions/core": "^1.10.0"
-    },
-    "devDependencies": {
-        "@vercel/ncc": "^0.36.1"
-    }
+  "name": "action-folder-matrix",
+  "version": "1.0.0",
+  "description": "GitHub Action to generate a matrix of subdirectories for parallelizing jobs",
+  "main": "dist/index.js",
+  "author": "mirceanton",
+  "license": "MIT",
+  "keywords": [
+    "github",
+    "actions",
+    "matrix",
+    "monorepo"
+  ],
+  "dependencies": {
+    "@actions/core": "^1.10.0"
+  }
 }

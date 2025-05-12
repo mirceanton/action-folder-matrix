@@ -1,6 +1,7 @@
 # Folder Matrix Action
 
-A GitHub Action that scans a directory and generates a matrix of subdirectories for parallelizing downstream jobs. Perfect for monorepos and projects with multiple components.
+A GitHub Action that scans a directory and generates a matrix of subdirectories for parallelizing downstream jobs.
+Perfect for monorepos and projects with multiple components.
 
 ## Features
 
@@ -130,7 +131,8 @@ jobs:
 
 ### Running Only In Directories Where Changes Were Made
 
-If you want to skip directories in which no changes were pushed (either at commit or PR scope), I recommend checking out the [`bjw-s-labs/action-changed-files` action](https://github.com/bjw-s-labs/action-changed-files)
+If you want to skip directories in which no changes were pushed (either at commit or PR scope), I recommend checking out
+the [`bjw-s-labs/action-changed-files` action](https://github.com/bjw-s-labs/action-changed-files)
 
 ```yaml
 ---
