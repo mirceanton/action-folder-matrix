@@ -40,7 +40,7 @@ jobs:
           token: "${{ steps.app-token.outputs.token }}"
 
       - name: Create Release
-        uses: mirceanton/action-semver-release@v1.3.0
+        uses: mirceanton/action-semver-release@c48aeafa1300c3f2867ee27250f5ed076c7cb2a0 # v1.3.0
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           dry-run: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry-run) || (github.event_name == 'push') }}
