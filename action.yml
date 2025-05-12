@@ -19,8 +19,8 @@ inputs:
 
 outputs:
   matrix:
-    description: 'JSON array of subdirectory names for use in matrix strategy'
+    description: JSON array of subdirectory names for use in matrix strategy
 
 runs:
-  using: 'node20'
-  main: 'dist/index.js'
+  using: node20
+  main: dist/index.js
