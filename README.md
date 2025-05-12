@@ -170,7 +170,7 @@ jobs:
 
       - name: Get Changed Files
         id: changed-files
-        uses: bjw-s-labs/action-changed-files@930cef8463348e168cab7235c47fe95a7a235f65
+        uses: bjw-s-labs/action-changed-files@main # !you should pin this to a specific sha!
         with:
           patterns: './charts/${{ matrix.directory }}/**/*'
 
