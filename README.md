@@ -23,8 +23,11 @@ jobs:
     outputs:
       matrix: ${{ steps.scan.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: mirceanton/action-folder-matrix@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Discover Projects
+        uses: mirceanton/action-folder-matrix@v1
         id: scan
         with:
           path: './projects'
@@ -38,6 +41,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Build
         working-directory: ./projects/${{ matrix.directory }}
         run: npm ci && npm run build
