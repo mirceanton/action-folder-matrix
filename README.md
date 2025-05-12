@@ -15,7 +15,10 @@ A GitHub Action that scans a directory and generates a matrix of subdirectories 
 ```yaml
 ---
 name: Build All Projects
-on: [push]
+permissions: { contents: read }
+
+on:
+  push: {}
 
 jobs:
   discover:
