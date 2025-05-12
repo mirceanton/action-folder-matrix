@@ -18,13 +18,19 @@ try {
     .readdirSync(dirPath, { withFileTypes: true })
     .filter((dirent) => {
       // Only include directories
-      if (!dirent.isDirectory()) return false;
+      if (!dirent.isDirectory()) {
+        return false;
+      }
 
       // Filter hidden directories if not included
-      if (!includeHidden && dirent.name.startsWith('.')) return false;
+      if (!includeHidden && dirent.name.startsWith('.')) {
+        return false;
+      }
 
       // Filter excluded directories
-      if (excludeList.includes(dirent.name)) return false;
+      if (excludeList.includes(dirent.name)) {
+        return false;
+      }
 
       return true;
     })
