@@ -5,7 +5,7 @@ node = "22"
 "aqua:rhysd/actionlint" = "1.7.7"
 "npm:@commitlint/cli" = "19.8.1"
 "npm:eslint" = "8.57.1"
-"npm:prettier" = "3.1.0"
+"npm:prettier" = "3.5.3"
 
 # Build
 "npm:@vercel/ncc" = "0.36.1"
