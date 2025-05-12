@@ -19,7 +19,7 @@ jobs:
         uses: jdx/mise-action@7a111ead46986ccad89a74ad013ba2a7c08c9e67 # v2.2.1
 
       - name: Build dist/ Directory
-        run: npm ci && mise run build
+        run: npm ci && npm run build
 
       - name: Check for changes
         id: check-changes
