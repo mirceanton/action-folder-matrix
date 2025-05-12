@@ -9,9 +9,9 @@ permissions:
   contents: read
 
 on:
-  schedule: [{ cron: "0 0 * * *" }]
-  push: { branches: ["main"] }
-  pull_request: { branches: ["main"] }
+  schedule: [{ cron: '0 0 * * *' }]
+  push: { branches: ['main'] }
+  pull_request: { branches: ['main'] }
   workflow_dispatch: {}
 
 jobs:
@@ -40,4 +40,4 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@60168efe1c415ce0f5521ea06d5c2062adbeed1b # v3.28.17
         with:
-          category: "/language:${{matrix.language}}"
+          category: '/language:${{matrix.language}}'

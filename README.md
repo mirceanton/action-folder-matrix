@@ -37,7 +37,7 @@ jobs:
           path: './projects'
 
   build:
-    name: "Building ${{ matrix.directory }}"
+    name: 'Building ${{ matrix.directory }}'
     needs: discover
     runs-on: ubuntu-latest
     strategy:
@@ -49,13 +49,12 @@ jobs:
       - name: Build
         working-directory: ./projects/${{ matrix.directory }}
         run: npm ci && npm run build
-
 ```
 
 ## Inputs
 
 | Input            | Description                                             | Required | Default |
-|------------------|---------------------------------------------------------|----------|---------|
+| ---------------- | ------------------------------------------------------- | -------- | ------- |
 | `path`           | Path to the directory to scan for subdirectories        | Yes      | `"."`   |
 | `include_hidden` | Whether to include hidden directories (starting with .) | No       | `false` |
 | `exclude`        | Comma-separated list of directory names to exclude      | No       | N/A     |
@@ -63,7 +62,7 @@ jobs:
 ## Outputs
 
 | Output   | Description                                                 |
-|----------|-------------------------------------------------------------|
+| -------- | ----------------------------------------------------------- |
 | `matrix` | JSON array of subdirectory names for use in matrix strategy |
 
 ### Output Format
@@ -91,7 +90,7 @@ permissions: { contents: read }
 on:
   workflow_dispatch: {}
   push:
-    paths: ["projects/**"]
+    paths: ['projects/**']
 
 jobs:
   discover-projects:
@@ -117,12 +116,12 @@ jobs:
       - name: Check if directory has files
         id: check
         run: |
-            if [ -n "$(ls -A projects/${{ matrix.directory }})" ]; then
-                echo "has_files=true" >> $GITHUB_OUTPUT
-            else
-                echo "has_files=false" >> $GITHUB_OUTPUT
-            fi
-            
+          if [ -n "$(ls -A projects/${{ matrix.directory }})" ]; then
+              echo "has_files=true" >> $GITHUB_OUTPUT
+          else
+              echo "has_files=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build
         if: steps.check.outputs.has_files == 'true'
         working-directory: projects/${{ matrix.directory }}
@@ -143,7 +142,7 @@ permissions: { contents: read }
 on:
   workflow_dispatch: {}
   push:
-    paths: ["charts/**"]
+    paths: ['charts/**']
 
 jobs:
   discover-charts:
@@ -173,7 +172,7 @@ jobs:
         id: changed-files
         uses: bjw-s-labs/action-changed-files@930cef8463348e168cab7235c47fe95a7a235f65
         with:
-          patterns: "./charts/${{ matrix.directory }}/**/*"
+          patterns: './charts/${{ matrix.directory }}/**/*'
 
       - name: Helm lint
         if: steps.changed-files.outputs.changed_files != '[]'
