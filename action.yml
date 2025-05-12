@@ -1,0 +1,26 @@
+---
+name: Folder Matrix
+description: Generates a matrix of subdirectories for parallelizing GitHub Actions jobs
+author: Mircea-Pavel Anton
+
+inputs:
+  path:
+    description: Path to the directory to scan for subdirectories
+    required: true
+    default: '.'
+  include_hidden:
+    description: Whether to include hidden directories (starting with .)
+    required: false
+    default: 'false'
+  exclude:
+    description: Comma-separated list of directory names to exclude
+    required: false
+    default: ''
+
+outputs:
+  matrix:
+    description: JSON array of subdirectory names for use in matrix strategy
+
+runs:
+  using: node20
+  main: dist/index.js
