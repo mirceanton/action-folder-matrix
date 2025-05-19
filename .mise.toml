@@ -6,4 +6,4 @@ node = "22"
 "npm:@commitlint/cli" = "19.8.1"
 
 # Others
-"npm:renovate" = "40.12.3"
+"npm:renovate" = "40.13.0"
