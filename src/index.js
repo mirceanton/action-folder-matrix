@@ -2,6 +2,39 @@ const core = require('@actions/core');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const { execSync } = require('child_process');
+
+/**
+ * Checks if a directory has changes based on the GitHub event type
+ * @param {string} dirPath Base directory path
+ * @param {string} subDir Subdirectory name
+ * @returns {boolean} True if directory has changes, false otherwise
+ */
+function hasChanges(dirPath, subDir) {
+  const fullPath = path.join(dirPath, subDir);
+  const relativePath = fullPath.replace(/\\/g, '/');
+
+  try {
+    const eventName = process.env.GITHUB_EVENT_NAME;
+    let command;
+
+    if (eventName === 'pull_request') {
+      // For PRs, compare with the base branch
+      const baseRef = process.env.GITHUB_BASE_REF;
+      command = `git diff --name-only origin/${baseRef}... -- ${relativePath}`;
+    } else {
+      // For pushes, check only the current commit
+      command = `git diff-tree --no-commit-id --name-only -r HEAD -- ${relativePath}`;
+    }
+
+    const output = execSync(command, { encoding: 'utf8' });
+    return output.trim().length > 0;
+  } catch (error) {
+    console.log(`Warning: Error checking changes for ${subDir}: ${error.message}`);
+    // If there's an error, we assume there are changes (fail-safe approach)
+    return true;
+  }
+}
 
 async function run() {
   try {
@@ -9,6 +42,7 @@ async function run() {
     const includeHidden = core.getInput('include_hidden') === 'true';
     const excludeInput = core.getInput('exclude');
     const metadataFile = core.getInput('metadata_file');
+    const filterChanges = core.getInput('filter_changes') === 'true';
     const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
     let matrixOutput;
 
@@ -29,6 +63,10 @@ async function run() {
 
         if (excludeList.includes(dirent.name)) {
           return false;
+        }
+
+        if (filterChanges) {
+          return hasChanges(dirPath, dirent.name);
         }
 
         return true;
