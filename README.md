@@ -1,15 +1,7 @@
 # Folder Matrix Action
 
-A GitHub Action that scans a directory and generates a matrix of subdirectories for parallelizing downstream jobs.
+A GitHub Action that scans a directory and generates a matrix of subdirectories for parallelizing downstream jobs.  
 Perfect for monorepos and projects with multiple components.
-
-## Features
-
-- 🔍 Scans specified directories for subdirectories
-- 🚀 Generates matrix output for parallel job execution
-- 🎯 Configurable inclusion/exclusion of directories
-- 👻 Optional hidden directory support
-- 📦 Zero runtime dependencies
 
 ## Example Usage
 
