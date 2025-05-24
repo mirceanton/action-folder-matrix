@@ -16,6 +16,10 @@ inputs:
     description: Comma-separated list of directory names to exclude
     required: false
     default: ''
+  metadata_file:
+    description: Path to metadata file within each subdirectory (e.g., metadata.json, Chart.yaml)
+    required: false
+    default: ''
 
 outputs:
   matrix:

@@ -1,0 +1,101 @@
+const core = require('@actions/core');
+const fs = require('fs');
+const path = require('path');
+const yaml = require('js-yaml');
+
+async function run() {
+  try {
+    const dirPath = core.getInput('path', { required: true });
+    const includeHidden = core.getInput('include_hidden') === 'true';
+    const excludeInput = core.getInput('exclude');
+    const metadataFile = core.getInput('metadata_file');
+    const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
+    let matrixOutput;
+
+    if (!fs.existsSync(dirPath)) {
+      throw new Error(`Directory does not exist: ${dirPath}`);
+    }
+
+    const subdirectories = fs
+      .readdirSync(dirPath, { withFileTypes: true })
+      .filter((dirent) => {
+        if (!dirent.isDirectory()) {
+          return false;
+        }
+
+        if (!includeHidden && dirent.name.startsWith('.')) {
+          return false;
+        }
+
+        if (excludeList.includes(dirent.name)) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((dirent) => dirent.name);
+
+    if (metadataFile && metadataFile.trim() !== '') {
+      const includeEntries = [];
+
+      for (const dir of subdirectories) {
+        const entry = { directory: dir };
+        const metadataPath = path.join(dirPath, dir, metadataFile);
+
+        if (fs.existsSync(metadataPath)) {
+          try {
+            const fileContent = fs.readFileSync(metadataPath, 'utf8');
+            let metadata;
+
+            switch (path.extname(metadataFile).toLowerCase()) {
+              case '.json':
+                metadata = JSON.parse(fileContent);
+                break;
+              case '.yaml':
+              case '.yml':
+                metadata = yaml.load(fileContent);
+                break;
+              default:
+                console.log(
+                  `Warning: Unsupported metadata file format: ${path.extname(metadataFile)}. Skipping metadata for ${dir}.`
+                );
+                includeEntries.push(entry);
+                continue;
+            }
+
+            for (const key in metadata) {
+              if (key !== 'directory') {
+                entry[key] = metadata[key];
+              } else {
+                console.log(`Warning: 'directory' key found in metadata for ${dir}. It will be ignored.`);
+              }
+            }
+          } catch (error) {
+            console.log(`Warning: Failed to parse metadata file for directory ${dir}: ${error.message}`);
+          }
+        } else {
+          console.log(`Warning: Metadata file not found for directory ${dir}`);
+        }
+
+        includeEntries.push(entry);
+      }
+
+      matrixOutput = { include: includeEntries };
+    } else {
+      matrixOutput = { directory: subdirectories };
+    }
+
+    core.setOutput('matrix', JSON.stringify(matrixOutput));
+    console.log(`Found subdirectories: ${JSON.stringify(matrixOutput)}`);
+    return matrixOutput;
+  } catch (error) {
+    core.setFailed(error.message);
+    throw error;
+  }
+}
+
+if (require.main === module) {
+  run();
+}
+
+module.exports = { run };
