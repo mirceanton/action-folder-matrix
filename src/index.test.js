@@ -541,7 +541,6 @@ describe('Folder Matrix Action', () => {
       } else {
         return ''; // No changes in other dirs
       }
-      return '';
     });
 
     require('child_process').execSync = execSyncMock;
