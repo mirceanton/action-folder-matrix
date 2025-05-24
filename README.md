@@ -45,11 +45,57 @@ jobs:
 
 ## Inputs
 
-| Input            | Description                                             | Required | Default |
-| ---------------- | ------------------------------------------------------- | -------- | ------- |
-| `path`           | Path to the directory to scan for subdirectories        | Yes      | `"."`   |
-| `include_hidden` | Whether to include hidden directories (starting with .) | No       | `false` |
-| `exclude`        | Comma-separated list of directory names to exclude      | No       | N/A     |
+| Input            | Description                                                                         | Required | Default |
+| ---------------- | ----------------------------------------------------------------------------------- | -------- | ------- |
+| `path`           | Path to the directory to scan for subdirectories                                    | Yes      | `"."`   |
+| `include_hidden` | Whether to include hidden directories (starting with .)                             | No       | `false` |
+| `exclude`        | Comma-separated list of directory names to exclude                                  | No       | N/A     |
+| `metadata_file`  | Path to metadata file within each subdirectory (e.g., `package.json`, `Chart.yaml`) | No       | N/A     |
+
+### Metadata Files
+
+You can specify a metadata file to be read from each subdirectory with the `metadata_file` input parameter. The contents
+of this file will be included in the matrix output, allowing you to use values like version, name, or other parameters
+in your downstream jobs.
+
+Supported formats:
+
+- JSON (`.json`)
+- YAML (`.yaml` or `.yml`)
+
+#### Example with Metadata Files
+
+For a monorepo with Node.js packages, you could use:
+
+```yaml
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discover Projects with Metadata
+        uses: mirceanton/action-folder-matrix@v1
+        id: scan
+        with:
+          path: './packages'
+          metadata_file: 'package.json'
+
+  build:
+    name: 'Building ${{ matrix.name }} v${{ matrix.version }}'
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and Publish
+        working-directory: ./packages/${{ matrix.directory }}
+        run: |
+          echo "Building ${{ matrix.name }} version ${{ matrix.version }}"
+          npm ci && npm run build
+          npm publish --tag=${{ matrix.version }}
+```
 
 ## Outputs
 
@@ -59,7 +105,9 @@ jobs:
 
 ### Output Format
 
-The action outputs a JSON object that can be used directly in a matrix strategy:
+The action always outputs a JSON object that can be directly used with a matrix strategy in downstream jobs:
+
+- When not using metadata files (default behavior):
 
 ```json
 {
@@ -67,120 +115,23 @@ The action outputs a JSON object that can be used directly in a matrix strategy:
 }
 ```
 
-## Tips and Tricks
+- When using metadata files (with the `metadata_file` input):
 
-### Filtering Empty Directories
-
-If you want to skip empty directories, you can add a check in your job:
-
-```yaml
----
-# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Build
-permissions: { contents: read }
-
-on:
-  workflow_dispatch: {}
-  push:
-    paths: ['projects/**']
-
-jobs:
-  discover-projects:
-    runs-on: ubuntu-latest
-    outputs:
-      projects: ${{ steps.discover.outputs.matrix }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Find Projects
-        id: discover
-        uses: mirceanton/action-folder-matrix@v1
-        with: { path: ./projects }
-
-  build:
-    needs: discover-projects
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.discover-projects.outputs.projects) }}
-    steps:
-      - name: Check if directory has files
-        id: check
-        run: |
-          if [ -n "$(ls -A projects/${{ matrix.directory }})" ]; then
-              echo "has_files=true" >> $GITHUB_OUTPUT
-          else
-              echo "has_files=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build
-        if: steps.check.outputs.has_files == 'true'
-        working-directory: projects/${{ matrix.directory }}
-        run: npm run build
-```
-
-### Running Only In Directories Where Changes Were Made
-
-If you want to skip directories in which no changes were pushed (either at commit or PR scope), I recommend checking out
-the [`bjw-s-labs/action-changed-files` action](https://github.com/bjw-s-labs/action-changed-files)
-
-```yaml
----
-# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Helm Lint
-permissions: { contents: read }
-
-on:
-  workflow_dispatch: {}
-  push:
-    paths: ['charts/**']
-
-jobs:
-  discover-charts:
-    runs-on: ubuntu-latest
-    outputs:
-      charts: ${{ steps.discover.outputs.matrix }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Find Helm Charts
-        id: discover
-        uses: mirceanton/action-folder-matrix@v1
-        with: { path: ./charts }
-
-  helm-lint:
-    needs: discover-charts
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.discover-charts.outputs.charts) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Get Changed Files
-        id: changed-files
-        uses: bjw-s-labs/action-changed-files@main # !you should pin this to a specific sha!
-        with:
-          patterns: './charts/${{ matrix.directory }}/**/*'
-
-      - name: Helm lint
-        if: steps.changed-files.outputs.changed_files != '[]'
-        working-directory: ./charts/${{ matrix.directory }}
-        run: helm lint .
-```
-
-### Dynamic Exclusions
-
-You can dynamically set exclusions based on environment:
-
-```yaml
-- uses: mirceanton/action-folder-matrix@v1
-  with:
-    path: './apps'
-    exclude: ${{ github.event_name == 'pull_request' && 'prod-app' || '' }}
+```json
+{
+  "include": [
+    {
+      "directory": "app1",
+      "name": "application-one",
+      "version": "1.0.0"
+    },
+    {
+      "directory": "app2",
+      "name": "application-two",
+      "version": "2.3.0"
+    }
+  ]
+}
 ```
 
 ## License
