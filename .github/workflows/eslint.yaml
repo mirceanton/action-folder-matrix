@@ -7,9 +7,8 @@ on:
   workflow_dispatch: {}
   push:
     paths:
-      - '.mise.toml'
       - '**.js'
-      - '.eslintrc.json'
+      - '.eslint.config.mjs'
       - '.eslintignore'
       - 'package*.json'
 
