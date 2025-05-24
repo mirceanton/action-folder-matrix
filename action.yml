@@ -20,6 +20,10 @@ inputs:
     description: Path to metadata file within each subdirectory (e.g., metadata.json, Chart.yaml)
     required: false
     default: ''
+  filter_changes:
+    description: Only include directories with changes (in current commit for push, or compared to base branch for PR)
+    required: false
+    default: 'false'
 
 outputs:
   matrix:
