@@ -458,4 +458,182 @@ describe('Folder Matrix Action', () => {
       })
     );
   });
+
+  // Filter Changes tests
+  test('should filter directories based on changes for push events', async () => {
+    // Save original env and process.execSync
+    const originalEnv = process.env;
+    const originalExecSync = require('child_process').execSync;
+
+    // Mock environment variables
+    process.env = {
+      ...process.env,
+      GITHUB_EVENT_NAME: 'push'
+    };
+
+    // Mock execSync to simulate git commands
+    const execSyncMock = jest.fn().mockImplementation((command) => {
+      if (command.includes('dir1')) {
+        return 'file1.txt\nfile2.txt'; // Changes detected in dir1
+      } else if (command.includes('dir2')) {
+        return ''; // No changes in dir2
+      } else if (command.includes('dir3')) {
+        return 'file3.txt'; // Changes detected in dir3
+      }
+      return '';
+    });
+
+    require('child_process').execSync = execSyncMock;
+
+    // Setup inputs
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'filter_changes':
+          return 'true';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {},
+        dir3: {}
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with only directories with changes
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['dir1', 'dir3']
+      })
+    );
+
+    // Restore original implementations
+    process.env = originalEnv;
+    require('child_process').execSync = originalExecSync;
+  });
+
+  test('should filter directories based on changes for PR events', async () => {
+    // Save original env and process.execSync
+    const originalEnv = process.env;
+    const originalExecSync = require('child_process').execSync;
+
+    // Mock environment variables
+    process.env = {
+      ...process.env,
+      GITHUB_EVENT_NAME: 'pull_request',
+      GITHUB_BASE_REF: 'main'
+    };
+
+    // Mock execSync to simulate git commands
+    const execSyncMock = jest.fn().mockImplementation((command) => {
+      if (command.includes('dir1')) {
+        return 'file1.txt\nfile2.txt'; // Changes detected in dir1
+      } else {
+        return ''; // No changes in other dirs
+      }
+      return '';
+    });
+
+    require('child_process').execSync = execSyncMock;
+
+    // Setup inputs
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'filter_changes':
+          return 'true';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {},
+        dir3: {}
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with only directories with changes
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['dir1']
+      })
+    );
+
+    // Restore original implementations
+    process.env = originalEnv;
+    require('child_process').execSync = originalExecSync;
+  });
+
+  test('should handle errors in git commands gracefully', async () => {
+    // Save original env and process.execSync
+    const originalEnv = process.env;
+    const originalExecSync = require('child_process').execSync;
+
+    // Mock environment variables
+    process.env = {
+      ...process.env,
+      GITHUB_EVENT_NAME: 'push'
+    };
+
+    // Mock execSync to throw error
+    const execSyncMock = jest.fn().mockImplementation((command) => {
+      throw new Error('Git command failed');
+    });
+
+    require('child_process').execSync = execSyncMock;
+
+    // Setup inputs
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'filter_changes':
+          return 'true';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {}
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with all directories (fail-safe approach)
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['dir1', 'dir2']
+      })
+    );
+
+    // Restore original implementations
+    process.env = originalEnv;
+    require('child_process').execSync = originalExecSync;
+  });
 });
