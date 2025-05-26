@@ -4,9 +4,6 @@ description: Generates a matrix of subdirectories for parallelizing GitHub Actio
 author: Mircea-Pavel Anton
 
 inputs:
-  github-token:
-    description: 'GitHub token to use for API calls'
-    required: true
   path:
     description: Path to the directory to scan for subdirectories
     required: true
@@ -23,10 +20,13 @@ inputs:
     description: Path to metadata file within each subdirectory (e.g., metadata.json, Chart.yaml)
     required: false
     default: ''
-  changed_only:
-    description: Only include directories with changes (in current commit for push, or compared to base branch for PR)
+  changed-only:
+    description: Whether to include only directories with changes
     required: false
     default: 'false'
+  github-token:
+    description: GitHub token used to get changed files (required when changed-only is true)
+    required: false
 
 outputs:
   matrix:
