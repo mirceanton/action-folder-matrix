@@ -122,7 +122,7 @@ async function run() {
     }
 
     core.setOutput('matrix', JSON.stringify(matrixOutput));
-    core.info(`Found subdirectories: ${JSON.stringify(matrixOutput)}`);
+    core.info(`Found subdirectories: ${JSON.stringify(matrixOutput, null, 2)}`);
     return matrixOutput;
   } catch (error) {
     core.setFailed(error.message);
