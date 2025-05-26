@@ -36669,54 +36669,60 @@ const path = __nccwpck_require__(6928);
 const yaml = __nccwpck_require__(4281);
 const github = __nccwpck_require__(3228);
 
-async function hasChanges(token, dirPath) {
-  core.debug(`Checking for changes in directory: ${dirPath}`);
+async function getChangedFiles(octokit, context) {
+  const { owner, repo } = context.repo;
+  let changedFiles = [];
 
-  const octokit = github.getOctokit(token);
-  const { context } = github;
+  if (context.eventName === 'push') {
+    const commitSha = context.sha;
 
-  const event = context.eventName;
-  core.debug(`Event: ${event}`);
-  const owner = context.repo.owner;
-  core.debug(`Owner: ${owner}`);
-  const repo = context.repo.repo;
-  core.debug(`Repo: ${repo}`);
+    try {
+      const { data: commit } = await octokit.rest.repos.getCommit({
+        owner,
+        repo,
+        ref: commitSha
+      });
 
-  if (event === 'pull_request') {
-    const pull_number = context.payload.pull_request.number;
-    core.debug(`Pull request number: ${pull_number}`);
+      changedFiles = commit.files.map((file) => file.filename);
+    } catch (error) {
+      console.log(`Error getting commit details: ${error.message}`);
+    }
+  } else if (context.eventName === 'pull_request' || context.eventName === 'pull_request_target') {
+    const pullNumber = context.payload.pull_request.number;
 
-    const response = await octokit.rest.pulls.listFiles({ owner, repo, pull_number });
+    try {
+      const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
+        owner,
+        repo,
+        pull_number: pullNumber,
+        per_page: 100
+      });
 
-    const changedFiles = response.data.files.map((f) => f.filename);
-    core.debug(`Changed files: ${JSON.stringify(changedFiles)}`);
-
-    return changedFiles.some((file) => file.startsWith(dirPath));
+      changedFiles = files.map((file) => file.filename);
+    } catch (error) {
+      console.log(`Error getting PR files: ${error.message}`);
+    }
   }
 
-  if (event === 'push') {
-    const base = context.payload.before;
-    core.debug(`Base commit: ${base}`);
-    const head = context.payload.after;
-    core.debug(`Head commit: ${head}`);
+  console.log(`Found ${changedFiles.length} changed files`);
+  return changedFiles;
+}
 
-    const response = await octokit.rest.repos.compareCommits({ owner, repo, base, head });
-
-    const changedFiles = response.data.files.map((f) => f.filename);
-    core.debug(`Changed files: ${JSON.stringify(changedFiles)}`);
-
-    for (const file of changedFiles) {
-      core.debug(`Checking file: ${file}`);
-      if (file.startsWith(dirPath)) {
-        core.debug(`File ${file} is in directory ${dirPath}`);
-        return true;
-      }
-    }
+function directoryHasChanges(basePath, dirName, changedFiles) {
+  if (!changedFiles || changedFiles.length === 0) {
     return false;
   }
 
-  core.warning(`Unsupported event type: ${event}`);
-  return true;
+  const dirPath = path.normalize(path.join(basePath, dirName));
+  const dirPathWithSep = dirPath + path.sep;
+
+  return changedFiles.some((file) => {
+    const normalizedFile = path.normalize(file);
+    return (
+      normalizedFile === dirPath || // The directory itself changed
+      normalizedFile.startsWith(dirPathWithSep) // A file within the directory changed
+    );
+  });
 }
 
 async function run() {
@@ -36725,20 +36731,23 @@ async function run() {
     const includeHidden = core.getInput('include_hidden') === 'true';
     const excludeInput = core.getInput('exclude');
     const metadataFile = core.getInput('metadata_file');
+    const changedOnly = core.getInput('changed-only') === 'true';
     const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
-
-    core.debug(`getinput value: ${core.getInput('include_hidden')}`);
-    core.debug(`getbooleaninput value: ${core.getBooleanInput('include_hidden')}`);
-
-    const changedOnly = core.getInput('changed_only') === 'true';
-    const token = core.getInput('github-token');
-    if (changedOnly && !token) {
-      throw new Error('GitHub token is required when "changed_only" is set to true.');
-    }
     let matrixOutput;
 
     if (!fs.existsSync(dirPath)) {
       throw new Error(`Directory does not exist: ${dirPath}`);
+    }
+
+    let changedFiles = [];
+    if (changedOnly) {
+      const token = process.env.GITHUB_TOKEN || core.getInput('github-token');
+      if (!token) {
+        throw new Error('GITHUB_TOKEN is required when changed-only is set to true');
+      }
+
+      const octokit = github.getOctokit(token);
+      changedFiles = await getChangedFiles(octokit, github.context);
     }
 
     const subdirectories = fs
@@ -36756,8 +36765,8 @@ async function run() {
           return false;
         }
 
-        if (changedOnly) {
-          return hasChanges(token, path.join(dirPath, dirent.name));
+        if (changedOnly && !directoryHasChanges(dirPath, dirent.name, changedFiles)) {
+          return false;
         }
 
         return true;
@@ -36815,7 +36824,7 @@ async function run() {
     }
 
     core.setOutput('matrix', JSON.stringify(matrixOutput));
-    core.info(`Found subdirectories: ${JSON.stringify(matrixOutput, null, 2)}`);
+    console.log(`Found subdirectories: ${JSON.stringify(matrixOutput)}`);
     return matrixOutput;
   } catch (error) {
     core.setFailed(error.message);
