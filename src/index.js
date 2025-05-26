@@ -4,11 +4,17 @@ const path = require('path');
 const yaml = require('js-yaml');
 
 async function hasChanges(token, dirPath) {
+  core.debug(`Checking for changes in directory: ${dirPath}`);
+
   const octokit = github.getOctokit(token);
   const { context } = github;
+
   const event = context.eventName;
+  core.debug(`Event: ${event}`);
   const owner = context.repo.owner;
+  core.debug(`Owner: ${owner}`);
   const repo = context.repo.repo;
+  core.debug(`Repo: ${repo}`);
 
   if (event === 'pull_request') {
     const pull_number = context.payload.pull_request.number;
@@ -19,9 +25,15 @@ async function hasChanges(token, dirPath) {
 
   if (event === 'push') {
     const base = context.payload.before;
+    core.debug(`Base commit: ${base}`);
     const head = context.payload.after;
+    core.debug(`Head commit: ${head}`);
+
     const response = await octokit.rest.repos.compareCommits({ owner, repo, base, head });
+
     const changedFiles = response.data.map((f) => f.filename);
+    core.debug(`Changed files: ${JSON.stringify(changedFiles)}`);
+
     return changedFiles.some((file) => file.startsWith(dirPath));
   }
 
@@ -36,6 +48,9 @@ async function run() {
     const excludeInput = core.getInput('exclude');
     const metadataFile = core.getInput('metadata_file');
     const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
+
+    core.debug(`getinput value: ${core.getInput('include_hidden')}`);
+    core.debug(`getbooleaninput value: ${core.getBooleanInput('include_hidden')}`);
 
     const changedOnly = core.getInput('changed_only') === 'true';
     const token = core.getInput('github_token');
@@ -122,7 +137,7 @@ async function run() {
     }
 
     core.setOutput('matrix', JSON.stringify(matrixOutput));
-    core.info(`Found subdirectories: ${JSON.stringify(matrixOutput, null, 2)}`);
+    core.info(`Found subdirectories: ${JSON.stringify(matrixOutput)}`);
     return matrixOutput;
   } catch (error) {
     core.setFailed(error.message);
