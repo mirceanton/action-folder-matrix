@@ -19,8 +19,13 @@ async function hasChanges(token, dirPath) {
 
   if (event === 'pull_request') {
     const pull_number = context.payload.pull_request.number;
+    core.debug(`Pull request number: ${pull_number}`);
+
     const response = await octokit.rest.pulls.listFiles({ owner, repo, pull_number });
+
     const changedFiles = response.data.files.map((f) => f.filename);
+    core.debug(`Changed files: ${JSON.stringify(changedFiles)}`);
+
     return changedFiles.some((file) => file.startsWith(dirPath));
   }
 
@@ -35,7 +40,14 @@ async function hasChanges(token, dirPath) {
     const changedFiles = response.data.files.map((f) => f.filename);
     core.debug(`Changed files: ${JSON.stringify(changedFiles)}`);
 
-    return changedFiles.some((file) => file.startsWith(dirPath));
+    for (const file of changedFiles) {
+      core.debug(`Checking file: ${file}`);
+      if (file.startsWith(dirPath)) {
+        core.debug(`File ${file} is in directory ${dirPath}`);
+        return true;
+      }
+    }
+    return false;
   }
 
   core.warning(`Unsupported event type: ${event}`);
