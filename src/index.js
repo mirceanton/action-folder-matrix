@@ -2,9 +2,8 @@ const core = require('@actions/core');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
-const { execSync } = require('child_process');
 
-async function getChangedFiles(token) {
+async function hasChanges(token, dirPath) {
   const octokit = github.getOctokit(token);
   const { context } = github;
   const event = context.eventName;
@@ -14,27 +13,35 @@ async function getChangedFiles(token) {
   if (event === 'pull_request') {
     const pull_number = context.payload.pull_request.number;
     const response = await octokit.rest.pulls.listFiles({ owner, repo, pull_number });
-    return response.data.map((f) => f.filename);
+    const changedFiles = response.data.map((f) => f.filename);
+    return changedFiles.some((file) => file.startsWith(dirPath));
   }
 
   if (event === 'push') {
     const base = context.payload.before;
     const head = context.payload.after;
     const response = await octokit.rest.repos.compareCommits({ owner, repo, base, head });
-    return response.data.map((f) => f.filename);
+    const changedFiles = response.data.map((f) => f.filename);
+    return changedFiles.some((file) => file.startsWith(dirPath));
   }
 
   core.warning(`Unsupported event type: ${event}`);
-  return [];
+  return true;
 }
 
 async function run() {
   try {
     const dirPath = core.getInput('path', { required: true });
     const includeHidden = core.getInput('include_hidden') === 'true';
-    const excludeDirs = core.getMultilineInput('exclude') || [];
+    const excludeInput = core.getInput('exclude');
     const metadataFile = core.getInput('metadata_file');
-    const changedOnly = core.getBooleanInput('changed_only');
+    const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
+
+    const changedOnly = core.getInput('changed_only') === 'true';
+    const token = core.getInput('github_token');
+    if (changedOnly && !token) {
+      throw new Error('GitHub token is required when "changed_only" is set to true.');
+    }
     let matrixOutput;
 
     if (!fs.existsSync(dirPath)) {
@@ -42,28 +49,32 @@ async function run() {
     }
 
     const subdirectories = fs
-      .readdirSync(rootDir, { withFileTypes: true })
-      .filter((dirent) => dirent.isDirectory())
-      .map((dirent) => dirent.name)
-      .filter((name) => includeHidden || !name.startsWith('.'))
-      .filter((name) => !excludeDirs.includes(name));
-
-    let filteredDirs = [];
-    if (changedOnly) {
-      const changedFiles = await getChangedFiles(githubToken);
-      for (const dir of subdirectories) {
-        if (changedFiles.some((file) => file.startsWith(`${dir}/`))) {
-          filteredDirs.push(dir);
+      .readdirSync(dirPath, { withFileTypes: true })
+      .filter((dirent) => {
+        if (!dirent.isDirectory()) {
+          return false;
         }
-      }
-    } else {
-      filteredDirs = subdirectories;
-    }
+
+        if (!includeHidden && dirent.name.startsWith('.')) {
+          return false;
+        }
+
+        if (excludeList.includes(dirent.name)) {
+          return false;
+        }
+
+        if (changedOnly) {
+          return hasChanges(token, path.join(dirPath, dirent.name));
+        }
+
+        return true;
+      })
+      .map((dirent) => dirent.name);
 
     if (metadataFile && metadataFile.trim() !== '') {
       const includeEntries = [];
 
-      for (const dir of filteredDirs) {
+      for (const dir of subdirectories) {
         const entry = { directory: dir };
         const metadataPath = path.join(dirPath, dir, metadataFile);
 
@@ -107,7 +118,7 @@ async function run() {
 
       matrixOutput = { include: includeEntries };
     } else {
-      matrixOutput = { directory: filteredDirs };
+      matrixOutput = { directory: subdirectories };
     }
 
     core.setOutput('matrix', JSON.stringify(matrixOutput));
