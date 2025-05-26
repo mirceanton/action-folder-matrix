@@ -29758,38 +29758,43 @@ const core = __nccwpck_require__(7484);
 const fs = __nccwpck_require__(9896);
 const path = __nccwpck_require__(6928);
 const yaml = __nccwpck_require__(4281);
-const { execSync } = __nccwpck_require__(5317);
 
-/**
- * Checks if a directory has changes based on the GitHub event type
- * @param {string} dirPath Base directory path
- * @param {string} subDir Subdirectory name
- * @returns {boolean} True if directory has changes, false otherwise
- */
-function hasChanges(dirPath, subDir) {
-  const fullPath = path.join(dirPath, subDir);
-  const relativePath = fullPath.replace(/\\/g, '/');
+async function hasChanges(token, dirPath) {
+  core.debug(`Checking for changes in directory: ${dirPath}`);
 
-  try {
-    const eventName = process.env.GITHUB_EVENT_NAME;
-    let command;
+  const octokit = github.getOctokit(token);
+  const { context } = github;
 
-    if (eventName === 'pull_request') {
-      // For PRs, compare with the base branch
-      const baseRef = process.env.GITHUB_BASE_REF;
-      command = `git diff --name-only origin/${baseRef}... -- ${relativePath}`;
-    } else {
-      // For pushes, check only the current commit
-      command = `git diff-tree --no-commit-id --name-only -r HEAD -- ${relativePath}`;
-    }
+  const event = context.eventName;
+  core.debug(`Event: ${event}`);
+  const owner = context.repo.owner;
+  core.debug(`Owner: ${owner}`);
+  const repo = context.repo.repo;
+  core.debug(`Repo: ${repo}`);
 
-    const output = execSync(command, { encoding: 'utf8' });
-    return output.trim().length > 0;
-  } catch (error) {
-    console.log(`Warning: Error checking changes for ${subDir}: ${error.message}`);
-    // If there's an error, we assume there are changes (fail-safe approach)
-    return true;
+  if (event === 'pull_request') {
+    const pull_number = context.payload.pull_request.number;
+    const response = await octokit.rest.pulls.listFiles({ owner, repo, pull_number });
+    const changedFiles = response.data.map((f) => f.filename);
+    return changedFiles.some((file) => file.startsWith(dirPath));
   }
+
+  if (event === 'push') {
+    const base = context.payload.before;
+    core.debug(`Base commit: ${base}`);
+    const head = context.payload.after;
+    core.debug(`Head commit: ${head}`);
+
+    const response = await octokit.rest.repos.compareCommits({ owner, repo, base, head });
+
+    const changedFiles = response.data.map((f) => f.filename);
+    core.debug(`Changed files: ${JSON.stringify(changedFiles)}`);
+
+    return changedFiles.some((file) => file.startsWith(dirPath));
+  }
+
+  core.warning(`Unsupported event type: ${event}`);
+  return true;
 }
 
 async function run() {
@@ -29798,8 +29803,16 @@ async function run() {
     const includeHidden = core.getInput('include_hidden') === 'true';
     const excludeInput = core.getInput('exclude');
     const metadataFile = core.getInput('metadata_file');
-    const filterChanges = core.getInput('filter_changes') === 'true';
     const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
+
+    core.debug(`getinput value: ${core.getInput('include_hidden')}`);
+    core.debug(`getbooleaninput value: ${core.getBooleanInput('include_hidden')}`);
+
+    const changedOnly = core.getInput('changed_only') === 'true';
+    const token = core.getInput('github_token');
+    if (changedOnly && !token) {
+      throw new Error('GitHub token is required when "changed_only" is set to true.');
+    }
     let matrixOutput;
 
     if (!fs.existsSync(dirPath)) {
@@ -29821,8 +29834,8 @@ async function run() {
           return false;
         }
 
-        if (filterChanges) {
-          return hasChanges(dirPath, dirent.name);
+        if (changedOnly) {
+          return hasChanges(token, path.join(dirPath, dirent.name));
         }
 
         return true;
@@ -29880,7 +29893,7 @@ async function run() {
     }
 
     core.setOutput('matrix', JSON.stringify(matrixOutput));
-    console.log(`Found subdirectories: ${JSON.stringify(matrixOutput)}`);
+    core.info(`Found subdirectories: ${JSON.stringify(matrixOutput)}`);
     return matrixOutput;
   } catch (error) {
     core.setFailed(error.message);
