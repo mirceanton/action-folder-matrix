@@ -2,6 +2,7 @@ const core = require('@actions/core');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
+const github = require('@actions/github');
 
 async function hasChanges(token, dirPath) {
   core.debug(`Checking for changes in directory: ${dirPath}`);
