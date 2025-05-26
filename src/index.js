@@ -20,7 +20,7 @@ async function hasChanges(token, dirPath) {
   if (event === 'pull_request') {
     const pull_number = context.payload.pull_request.number;
     const response = await octokit.rest.pulls.listFiles({ owner, repo, pull_number });
-    const changedFiles = response.data.map((f) => f.filename);
+    const changedFiles = response.data.files.map((f) => f.filename);
     return changedFiles.some((file) => file.startsWith(dirPath));
   }
 
@@ -32,7 +32,7 @@ async function hasChanges(token, dirPath) {
 
     const response = await octokit.rest.repos.compareCommits({ owner, repo, base, head });
 
-    const changedFiles = response.data.map((f) => f.filename);
+    const changedFiles = response.data.files.map((f) => f.filename);
     core.debug(`Changed files: ${JSON.stringify(changedFiles)}`);
 
     return changedFiles.some((file) => file.startsWith(dirPath));
