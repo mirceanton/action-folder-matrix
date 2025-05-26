@@ -4,6 +4,9 @@ description: Generates a matrix of subdirectories for parallelizing GitHub Actio
 author: Mircea-Pavel Anton
 
 inputs:
+  github-token:
+    description: 'GitHub token to use for API calls'
+    required: true
   path:
     description: Path to the directory to scan for subdirectories
     required: true

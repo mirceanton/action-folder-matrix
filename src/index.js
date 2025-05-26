@@ -4,46 +4,37 @@ const path = require('path');
 const yaml = require('js-yaml');
 const { execSync } = require('child_process');
 
-/**
- * Checks if a directory has changes based on the GitHub event type
- * @param {string} dirPath Base directory path
- * @param {string} subDir Subdirectory name
- * @returns {boolean} True if directory has changes, false otherwise
- */
-function hasChanges(dirPath, subDir) {
-  const fullPath = path.join(dirPath, subDir);
-  const relativePath = fullPath.replace(/\\/g, '/');
+async function getChangedFiles(token) {
+  const octokit = github.getOctokit(token);
+  const { context } = github;
+  const event = context.eventName;
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;
 
-  try {
-    const eventName = process.env.GITHUB_EVENT_NAME;
-    let command;
-
-    if (eventName === 'pull_request') {
-      // For PRs, compare with the base branch
-      const baseRef = process.env.GITHUB_BASE_REF;
-      command = `git diff --name-only origin/${baseRef}... -- ${relativePath}`;
-    } else {
-      // For pushes, check only the current commit
-      command = `git diff-tree --no-commit-id --name-only -r HEAD -- ${relativePath}`;
-    }
-
-    const output = execSync(command, { encoding: 'utf8' });
-    return output.trim().length > 0;
-  } catch (error) {
-    console.log(`Warning: Error checking changes for ${subDir}: ${error.message}`);
-    // If there's an error, we assume there are changes (fail-safe approach)
-    return true;
+  if (event === 'pull_request') {
+    const pull_number = context.payload.pull_request.number;
+    const response = await octokit.rest.pulls.listFiles({ owner, repo, pull_number });
+    return response.data.map((f) => f.filename);
   }
+
+  if (event === 'push') {
+    const base = context.payload.before;
+    const head = context.payload.after;
+    const response = await octokit.rest.repos.compareCommits({ owner, repo, base, head });
+    return response.data.map((f) => f.filename);
+  }
+
+  core.warning(`Unsupported event type: ${event}`);
+  return [];
 }
 
 async function run() {
   try {
     const dirPath = core.getInput('path', { required: true });
     const includeHidden = core.getInput('include_hidden') === 'true';
-    const excludeInput = core.getInput('exclude');
+    const excludeDirs = core.getMultilineInput('exclude') || [];
     const metadataFile = core.getInput('metadata_file');
-    const filterChanges = core.getInput('filter_changes') === 'true';
-    const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
+    const changedOnly = core.getBooleanInput('changed_only');
     let matrixOutput;
 
     if (!fs.existsSync(dirPath)) {
@@ -51,32 +42,28 @@ async function run() {
     }
 
     const subdirectories = fs
-      .readdirSync(dirPath, { withFileTypes: true })
-      .filter((dirent) => {
-        if (!dirent.isDirectory()) {
-          return false;
-        }
+      .readdirSync(rootDir, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => dirent.name)
+      .filter((name) => includeHidden || !name.startsWith('.'))
+      .filter((name) => !excludeDirs.includes(name));
 
-        if (!includeHidden && dirent.name.startsWith('.')) {
-          return false;
+    let filteredDirs = [];
+    if (changedOnly) {
+      const changedFiles = await getChangedFiles(githubToken);
+      for (const dir of subdirectories) {
+        if (changedFiles.some((file) => file.startsWith(`${dir}/`))) {
+          filteredDirs.push(dir);
         }
-
-        if (excludeList.includes(dirent.name)) {
-          return false;
-        }
-
-        if (filterChanges) {
-          return hasChanges(dirPath, dirent.name);
-        }
-
-        return true;
-      })
-      .map((dirent) => dirent.name);
+      }
+    } else {
+      filteredDirs = subdirectories;
+    }
 
     if (metadataFile && metadataFile.trim() !== '') {
       const includeEntries = [];
 
-      for (const dir of subdirectories) {
+      for (const dir of filteredDirs) {
         const entry = { directory: dir };
         const metadataPath = path.join(dirPath, dir, metadataFile);
 
@@ -120,7 +107,7 @@ async function run() {
 
       matrixOutput = { include: includeEntries };
     } else {
-      matrixOutput = { directory: subdirectories };
+      matrixOutput = { directory: filteredDirs };
     }
 
     core.setOutput('matrix', JSON.stringify(matrixOutput));
