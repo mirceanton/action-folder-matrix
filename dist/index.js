@@ -29809,7 +29809,7 @@ async function run() {
     core.debug(`getbooleaninput value: ${core.getBooleanInput('include_hidden')}`);
 
     const changedOnly = core.getInput('changed_only') === 'true';
-    const token = core.getInput('github_token');
+    const token = core.getInput('github-token');
     if (changedOnly && !token) {
       throw new Error('GitHub token is required when "changed_only" is set to true.');
     }
