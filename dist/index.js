@@ -34266,6 +34266,7 @@ async function run() {
     }
 
     core.setOutput('matrix', JSON.stringify(matrixOutput));
+    core.info(JSON.stringify(matrixOutput, null, 2));
 
     if (subdirectories.length === 0) {
       if (changedOnly) {
