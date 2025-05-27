@@ -2,10 +2,12 @@ const mockFs = require('mock-fs');
 const core = require('@actions/core');
 const fs = require('fs');
 const path = require('path');
+const github = require('@actions/github');
 const { run } = require('./index');
 
-// Mock the @actions/core module
+// Mock the @actions/core and @actions/github modules
 jest.mock('@actions/core');
+jest.mock('@actions/github');
 
 // Save original implementation to restore later
 const originalConsoleLog = console.log;
@@ -30,6 +32,10 @@ describe('Folder Matrix Action', () => {
           return '';
         case 'metadata_file':
           return '';
+        case 'changed-only':
+          return 'false';
+        case 'github-token':
+          return 'mock-token';
         default:
           return '';
       }
@@ -38,6 +44,46 @@ describe('Folder Matrix Action', () => {
     // Setup core.setOutput mock
     core.setOutput = jest.fn();
     core.setFailed = jest.fn();
+
+    // Mock GitHub context
+    github.context = {
+      eventName: 'push',
+      repo: {
+        owner: 'testowner',
+        repo: 'testrepo'
+      },
+      sha: 'abc123',
+      payload: {
+        pull_request: {
+          number: 123
+        }
+      }
+    };
+
+    // Mock Octokit
+    const mockOctokit = {
+      rest: {
+        repos: {
+          getCommit: jest.fn().mockResolvedValue({
+            data: {
+              files: []
+            }
+          })
+        },
+        pulls: {
+          listFiles: jest.fn().mockResolvedValue({
+            data: []
+          })
+        }
+      },
+      paginate: jest.fn().mockImplementation(async (method) => {
+        return [];
+      })
+    };
+    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+
+    // Setup process.env
+    process.env.GITHUB_TOKEN = 'mock-env-token';
   });
 
   afterEach(() => {
@@ -46,6 +92,9 @@ describe('Folder Matrix Action', () => {
 
     // Restore console.log
     console.log = originalConsoleLog;
+
+    // Clear environment variables
+    delete process.env.GITHUB_TOKEN;
   });
 
   // Basic directory scanning tests
@@ -453,6 +502,330 @@ describe('Folder Matrix Action', () => {
         include: [
           {
             directory: 'project1'
+          }
+        ]
+      })
+    );
+  });
+
+  // New tests for changed-only functionality
+  test('should include all directories when changed-only is false', async () => {
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {},
+        dir3: {}
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with all directories
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['dir1', 'dir2', 'dir3']
+      })
+    );
+  });
+
+  test('should throw error when changed-only is true but no GitHub token is provided', async () => {
+    // Remove token from environment and input
+    delete process.env.GITHUB_TOKEN;
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'changed-only':
+          return 'true';
+        case 'github-token':
+          return ''; // No token
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {}
+      }
+    });
+
+    // Execute the function and expect it to throw
+    await expect(run()).rejects.toThrow('GITHUB_TOKEN is required when changed-only is set to true');
+    expect(core.setFailed).toHaveBeenCalledWith('GITHUB_TOKEN is required when changed-only is set to true');
+  });
+
+  test('should filter directories based on changed files for push event', async () => {
+    // Setup inputs for changed-only
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'changed-only':
+          return 'true';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {
+          'file1.txt': 'content'
+        },
+        dir2: {
+          'file2.txt': 'content'
+        },
+        dir3: {
+          'file3.txt': 'content'
+        }
+      }
+    });
+
+    // Mock changed files from GitHub API
+    const mockOctokit = {
+      rest: {
+        repos: {
+          getCommit: jest.fn().mockResolvedValue({
+            data: {
+              files: [{ filename: 'test-repo/dir1/file1.txt' }, { filename: 'test-repo/dir3/subdir/file.txt' }]
+            }
+          })
+        }
+      }
+    };
+    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+
+    // Execute the function
+    await run();
+
+    // Should only include directories with changes
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['dir1', 'dir3']
+      })
+    );
+  });
+
+  test('should filter directories based on changed files for pull request event', async () => {
+    // Setup inputs for changed-only
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'changed-only':
+          return 'true';
+        default:
+          return '';
+      }
+    });
+
+    // Change context to pull_request
+    github.context.eventName = 'pull_request';
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {},
+        dir3: {}
+      }
+    });
+
+    // Mock changed files from GitHub API for PR
+    const mockOctokit = {
+      rest: {
+        pulls: {
+          listFiles: jest.fn().mockResolvedValue({
+            data: [{ filename: 'test-repo/dir2/file2.txt' }]
+          })
+        }
+      },
+      paginate: jest.fn().mockImplementation(async (method) => {
+        return [{ filename: 'test-repo/dir2/file2.txt' }];
+      })
+    };
+    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+
+    // Execute the function
+    await run();
+
+    // Should only include directories with changes
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['dir2']
+      })
+    );
+  });
+
+  test('should handle empty changed files result', async () => {
+    // Setup inputs for changed-only
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'changed-only':
+          return 'true';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {}
+      }
+    });
+
+    // Mock empty changed files from GitHub API
+    const mockOctokit = {
+      rest: {
+        repos: {
+          getCommit: jest.fn().mockResolvedValue({
+            data: {
+              files: []
+            }
+          })
+        }
+      }
+    };
+    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+
+    // Execute the function
+    await run();
+
+    // When no changed files are found, should return an empty matrix
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: []
+      })
+    );
+  });
+
+  test('should handle API errors gracefully', async () => {
+    // Setup inputs for changed-only
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'changed-only':
+          return 'true';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {}
+      }
+    });
+
+    // Mock API error
+    const mockOctokit = {
+      rest: {
+        repos: {
+          getCommit: jest.fn().mockRejectedValue(new Error('API error'))
+        }
+      }
+    };
+    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+
+    // Execute the function
+    await run();
+
+    // Should include no directories since the API call failed and no files were found
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: []
+      })
+    );
+  });
+
+  test('should include changed directories with metadata files', async () => {
+    // Setup inputs
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'metadata_file':
+          return 'package.json';
+        case 'changed-only':
+          return 'true';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem with metadata files
+    mockFs({
+      'test-repo': {
+        project1: {
+          'package.json': JSON.stringify({
+            name: 'project-one',
+            version: '1.0.0'
+          })
+        },
+        project2: {
+          'package.json': JSON.stringify({
+            name: 'project-two',
+            version: '2.0.0'
+          })
+        },
+        project3: {
+          'package.json': JSON.stringify({
+            name: 'project-three',
+            version: '3.0.0'
+          })
+        }
+      }
+    });
+
+    // Mock changed files from GitHub API
+    const mockOctokit = {
+      rest: {
+        repos: {
+          getCommit: jest.fn().mockResolvedValue({
+            data: {
+              files: [{ filename: 'test-repo/project1/src/file.js' }, { filename: 'test-repo/project3/package.json' }]
+            }
+          })
+        }
+      }
+    };
+    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+
+    // Execute the function
+    await run();
+
+    // Should include only changed directories with their metadata
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        include: [
+          {
+            directory: 'project1',
+            name: 'project-one',
+            version: '1.0.0'
+          },
+          {
+            directory: 'project3',
+            name: 'project-three',
+            version: '3.0.0'
           }
         ]
       })
