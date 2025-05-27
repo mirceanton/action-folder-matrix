@@ -145,6 +145,29 @@ current push or pull request. This requires a GitHub token with repository acces
     github-token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### Combining Multiple Filters
+
+You can combine multiple filtering options for fine-grained control:
+
+```yaml
+- name: Discover Filtered Projects
+  uses: mirceanton/action-folder-matrix@v1
+  with:
+    path: './packages'
+    include_hidden: false # Exclude hidden directories
+    exclude: 'deprecated,old-app' # Exclude specific directories
+    filter: '^(service|app)-.*' # Only include service-* and app-* directories
+    changed-only: true # Only include directories with changes
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+The filters are applied in this order:
+
+1. Hidden directory check (`include_hidden`)
+2. Exclude list (`exclude`)
+3. Regular expression filter (`filter`)
+4. Changed files check (`changed-only`)
+
 ## Outputs
 
 | Output   | Description                                                 |
@@ -181,29 +204,6 @@ The action always outputs a JSON object that can be directly used with a matrix 
   ]
 }
 ```
-
-## Combining Multiple Filters
-
-You can combine multiple filtering options for fine-grained control:
-
-```yaml
-- name: Discover Filtered Projects
-  uses: mirceanton/action-folder-matrix@v1
-  with:
-    path: './packages'
-    include_hidden: false # Exclude hidden directories
-    exclude: 'deprecated,old-app' # Exclude specific directories
-    filter: '^(service|app)-.*' # Only include service-* and app-* directories
-    changed-only: true # Only include directories with changes
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-The filters are applied in this order:
-
-1. Hidden directory check (`include_hidden`)
-2. Exclude list (`exclude`)
-3. Regular expression filter (`filter`)
-4. Changed files check (`changed-only`)
 
 ## License
 
