@@ -8,7 +8,7 @@ inputs:
     description: Path to the directory to scan for subdirectories
     required: true
     default: '.'
-  include_hidden:
+  include-hidden:
     description: Whether to include hidden directories (starting with .)
     required: false
     default: 'false'
@@ -20,7 +20,7 @@ inputs:
     description: Regular expression pattern to filter directory names (only matching directories will be included)
     required: false
     default: ''
-  metadata_file:
+  metadata-file:
     description: Path to metadata file within each subdirectory (e.g., metadata.json, Chart.yaml)
     required: false
     default: ''

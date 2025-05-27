@@ -24,13 +24,13 @@ describe('Folder Matrix Action', () => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'include_hidden':
+        case 'include-hidden':
           return 'false';
         case 'exclude':
           return '';
         case 'filter':
           return '';
-        case 'metadata_file':
+        case 'metadata-file':
           return '';
         case 'changed-only':
           return 'false';
@@ -143,13 +143,13 @@ describe('Folder Matrix Action', () => {
     );
   });
 
-  test('should include hidden directories when include_hidden is true', async () => {
-    // Setup inputs with include_hidden = true
+  test('should include hidden directories when include-hidden is true', async () => {
+    // Setup inputs with include-hidden = true
     core.getInput = jest.fn().mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'include_hidden':
+        case 'include-hidden':
           return 'true';
         default:
           return '';
@@ -390,7 +390,7 @@ describe('Folder Matrix Action', () => {
           return './test-repo';
         case 'filter':
           return '^service-.*';
-        case 'metadata_file':
+        case 'metadata-file':
           return 'package.json';
         default:
           return '';
@@ -472,7 +472,7 @@ describe('Folder Matrix Action', () => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'metadata_file':
+        case 'metadata-file':
           return 'package.json';
         default:
           return '';
@@ -534,7 +534,7 @@ describe('Folder Matrix Action', () => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'metadata_file':
+        case 'metadata-file':
           return 'Chart.yaml';
         default:
           return '';
@@ -588,7 +588,7 @@ describe('Folder Matrix Action', () => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'metadata_file':
+        case 'metadata-file':
           return 'package.json';
         default:
           return '';
@@ -634,7 +634,7 @@ describe('Folder Matrix Action', () => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'metadata_file':
+        case 'metadata-file':
           return 'Chart.yaml';
         default:
           return '';
@@ -666,7 +666,7 @@ describe('Folder Matrix Action', () => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'metadata_file':
+        case 'metadata-file':
           return 'metadata.json';
         default:
           return '';
@@ -708,7 +708,7 @@ describe('Folder Matrix Action', () => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'metadata_file':
+        case 'metadata-file':
           return 'metadata.txt';
         default:
           return '';
@@ -994,7 +994,7 @@ describe('Folder Matrix Action', () => {
       switch (name) {
         case 'path':
           return './test-repo';
-        case 'metadata_file':
+        case 'metadata-file':
           return 'package.json';
         case 'changed-only':
           return 'true';

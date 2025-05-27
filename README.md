@@ -48,10 +48,10 @@ jobs:
 | Input            | Description                                                                                       | Required | Default |
 | ---------------- | ------------------------------------------------------------------------------------------------- | -------- | ------- |
 | `path`           | Path to the directory to scan for subdirectories                                                  | Yes      | `"."`   |
-| `include_hidden` | Whether to include hidden directories (starting with .)                                           | No       | `false` |
+| `include-hidden` | Whether to include hidden directories (starting with .)                                           | No       | `false` |
 | `exclude`        | Comma-separated list of directory names to exclude                                                | No       | N/A     |
 | `filter`         | Regular expression pattern to filter directory names (only matching directories will be included) | No       | N/A     |
-| `metadata_file`  | Path to metadata file within each subdirectory (e.g., `package.json`, `Chart.yaml`)               | No       | N/A     |
+| `metadata-file`  | Path to metadata file within each subdirectory (e.g., `package.json`, `Chart.yaml`)               | No       | N/A     |
 | `changed-only`   | Whether to include only directories with changes                                                  | No       | `false` |
 | `github-token`   | GitHub token used to get changed files (required when changed-only is true)                       | No       | N/A     |
 
@@ -87,7 +87,7 @@ for selecting specific types of directories in complex monorepos.
 
 ### Metadata Files
 
-You can specify a metadata file to be read from each subdirectory with the `metadata_file` input parameter. The contents
+You can specify a metadata file to be read from each subdirectory with the `metadata-file` input parameter. The contents
 of this file will be included in the matrix output, allowing you to use values like version, name, or other parameters
 in your downstream jobs.
 
@@ -110,7 +110,7 @@ jobs:
         id: scan
         with:
           path: './packages'
-          metadata_file: 'package.json'
+          metadata-file: 'package.json'
           filter: '^service-.*' # Only include service packages
 
   build:
@@ -154,7 +154,7 @@ You can combine multiple filtering options for fine-grained control:
   uses: mirceanton/action-folder-matrix@v1
   with:
     path: './packages'
-    include_hidden: false # Exclude hidden directories
+    include-hidden: false # Exclude hidden directories
     exclude: 'deprecated,old-app' # Exclude specific directories
     filter: '^(service|app)-.*' # Only include service-* and app-* directories
     changed-only: true # Only include directories with changes
@@ -163,7 +163,7 @@ You can combine multiple filtering options for fine-grained control:
 
 The filters are applied in this order:
 
-1. Hidden directory check (`include_hidden`)
+1. Hidden directory check (`include-hidden`)
 2. Exclude list (`exclude`)
 3. Regular expression filter (`filter`)
 4. Changed files check (`changed-only`)
@@ -186,7 +186,7 @@ The action always outputs a JSON object that can be directly used with a matrix 
 }
 ```
 
-- When using metadata files (with the `metadata_file` input):
+- When using metadata files (with the `metadata-file` input):
 
 ```json
 {

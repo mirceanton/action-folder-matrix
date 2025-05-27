@@ -81,14 +81,29 @@ function directoryHasChanges(basePath, dirName, changedFiles) {
 
 async function run() {
   try {
-    const dirPath = core.getInput('path', { required: true });
-    const includeHidden = core.getInput('include_hidden') === 'true';
+    const rootDir = core.getInput('path', { required: true });
+    const includeHidden = core.getInput('include-hidden').toLowerCase().trim() === 'true';
     const excludeInput = core.getInput('exclude');
-    const filterInput = core.getInput('filter');
-    const metadataFile = core.getInput('metadata_file');
-    const changedOnly = core.getInput('changed-only') === 'true';
     const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
+    const filterInput = core.getInput('filter');
+    const metadataFile = core.getInput('metadata-file');
+    const changedOnly = core.getInput('changed-only').toLowerCase().trim() === 'true';
     let matrixOutput;
+
+    core.info(`Configuration: {`);
+    core.info(`  path: ${rootDir}`);
+    core.info(`  include-hidden: ${includeHidden}`);
+    core.info(`  exclude: ${excludeList.join(', ') || 'none'}`);
+    core.info(`  filter: ${filterInput || 'none'}`);
+    core.info(`  metadata-file: ${metadataFile || 'none'}`);
+    core.info(`  changed-only: ${changedOnly}`);
+    core.info(`}`);
+
+    if (!fs.existsSync(rootDir)) {
+      const errorMsg = `Directory does not exist: ${rootDir}`;
+      core.error(errorMsg);
+      throw new Error(errorMsg);
+    }
 
     // Validate and compile regex filter if provided
     let filterRegex = null;
@@ -107,21 +122,7 @@ async function run() {
       }
     }
 
-    core.info(`Configuration: {`);
-    core.info(`  path: ${dirPath}`);
-    core.info(`  include_hidden: ${includeHidden}`);
-    core.info(`  exclude: ${excludeList.join(', ') || 'none'}`);
-    core.info(`  filter: ${filterInput || 'none'}`);
-    core.info(`  metadata_file: ${metadataFile || 'none'}`);
-    core.info(`  changed-only: ${changedOnly}`);
-    core.info(`}`);
-
-    if (!fs.existsSync(dirPath)) {
-      const errorMsg = `Directory does not exist: ${dirPath}`;
-      core.error(errorMsg);
-      throw new Error(errorMsg);
-    }
-
+    // Fetch changed files if changed-only mode is enabled
     let changedFiles = [];
     if (changedOnly) {
       core.debug('Changed-only mode enabled, fetching changed files...');
@@ -140,8 +141,8 @@ async function run() {
       }
     }
 
-    core.info(`Scanning directory ${dirPath} for subdirectories`);
-    const allEntries = fs.readdirSync(dirPath, { withFileTypes: true });
+    core.info(`Scanning directory ${rootDir} for subdirectories`);
+    const allEntries = fs.readdirSync(rootDir, { withFileTypes: true });
     core.info(`Found ${allEntries.length} entries in directory`);
 
     const subdirectories = allEntries
@@ -167,7 +168,7 @@ async function run() {
         }
 
         if (changedOnly) {
-          const hasChanges = directoryHasChanges(dirPath, dirent.name, changedFiles);
+          const hasChanges = directoryHasChanges(rootDir, dirent.name, changedFiles);
           if (!hasChanges) {
             core.info(`Skipping ${dirent.name}: no changes detected`);
             return false;
@@ -182,13 +183,14 @@ async function run() {
 
     core.debug(`Found ${subdirectories.length} subdirectories after filtering`);
 
+    // If metadata file is specified, read it from each subdirectory
     if (metadataFile && metadataFile.trim() !== '') {
       core.debug(`Reading metadata from ${metadataFile} in each subdirectory`);
       const includeEntries = [];
 
       for (const dir of subdirectories) {
         const entry = { directory: dir };
-        const metadataPath = path.join(dirPath, dir, metadataFile);
+        const metadataPath = path.join(rootDir, dir, metadataFile);
         core.debug(`Checking for metadata file at ${metadataPath}`);
 
         if (fs.existsSync(metadataPath)) {
