@@ -36754,14 +36754,13 @@ async function run() {
     const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
     let matrixOutput;
 
-    core.info(`Configuration: {
-      path: ${dirPath}
-      include_hidden: ${includeHidden}
-      exclude: ${excludeList.join(', ') || 'none'}
-      metadata_file: ${metadataFile || 'none'}
-      changed-only: ${changedOnly}
-    }
-    `);
+    core.info(`Configuration: {`);
+    core.info(`  path: ${dirPath}`);
+    core.info(`  include_hidden: ${includeHidden}`);
+    core.info(`  exclude: ${excludeList.join(', ') || 'none'}`);
+    core.info(`  metadata_file: ${metadataFile || 'none'}`);
+    core.info(`  changed-only: ${changedOnly}`);
+    core.info(`}`);
 
     if (!fs.existsSync(dirPath)) {
       const errorMsg = `Directory does not exist: ${dirPath}`;
