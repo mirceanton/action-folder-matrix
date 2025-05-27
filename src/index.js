@@ -121,9 +121,9 @@ async function run() {
       }
     }
 
-    core.debug(`Scanning directory ${dirPath} for subdirectories`);
+    core.info(`Scanning directory ${dirPath} for subdirectories`);
     const allEntries = fs.readdirSync(dirPath, { withFileTypes: true });
-    core.debug(`Found ${allEntries.length} entries in directory`);
+    core.info(`Found ${allEntries.length} entries in directory`);
 
     const subdirectories = allEntries
       .filter((dirent) => {
