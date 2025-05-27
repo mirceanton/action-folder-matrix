@@ -89,12 +89,13 @@ async function run() {
     const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
     let matrixOutput;
 
-    core.info(`Configuration:
-      - Path: ${dirPath}
-      - Include hidden: ${includeHidden}
-      - Exclude: ${excludeList.join(', ') || 'none'}
-      - Metadata file: ${metadataFile || 'none'}
-      - Changed only: ${changedOnly}
+    core.info(`Configuration: {
+      path: ${dirPath}
+      include_hidden: ${includeHidden}
+      exclude: ${excludeList.join(', ') || 'none'}
+      metadata_file: ${metadataFile || 'none'}
+      changed-only: ${changedOnly}
+    }
     `);
 
     if (!fs.existsSync(dirPath)) {
@@ -105,7 +106,7 @@ async function run() {
 
     let changedFiles = [];
     if (changedOnly) {
-      core.info('Changed-only mode enabled, fetching changed files...');
+      core.debug('Changed-only mode enabled, fetching changed files...');
       const token = process.env.GITHUB_TOKEN || core.getInput('github-token');
       if (!token) {
         const errorMsg = 'GITHUB_TOKEN is required when changed-only is set to true';
@@ -213,7 +214,6 @@ async function run() {
       core.debug(`Created simple matrix: ${JSON.stringify(matrixOutput)}`);
     }
 
-    core.info(`Setting matrix output with ${metadataFile ? 'metadata' : 'directory'} format`);
     core.setOutput('matrix', JSON.stringify(matrixOutput));
 
     if (subdirectories.length === 0) {
