@@ -1,7 +1,5 @@
 const mockFs = require('mock-fs');
 const core = require('@actions/core');
-const fs = require('fs');
-const path = require('path');
 const github = require('@actions/github');
 const { run } = require('./index');
 
@@ -29,6 +27,8 @@ describe('Folder Matrix Action', () => {
         case 'include_hidden':
           return 'false';
         case 'exclude':
+          return '';
+        case 'filter':
           return '';
         case 'metadata_file':
           return '';
@@ -208,6 +208,238 @@ describe('Folder Matrix Action', () => {
       'matrix',
       JSON.stringify({
         directory: ['dir1', 'dir4']
+      })
+    );
+  });
+
+  test('should filter directories using regex pattern', async () => {
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'filter':
+          return '^app-.*';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        'app-frontend': {},
+        'app-backend': {},
+        'lib-common': {},
+        docs: {},
+        'app-mobile': {}
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with only matching directories
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['app-backend', 'app-frontend', 'app-mobile']
+      })
+    );
+  });
+
+  test('should filter directories using complex regex pattern', async () => {
+    // Setup inputs with complex regex filter
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'filter':
+          return '(service|app)-(\\w+)$';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        'service-auth': {},
+        'app-web': {},
+        'lib-common': {},
+        'service-notification': {},
+        config: {},
+        'app-mobile': {}
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with only matching directories
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['app-mobile', 'app-web', 'service-auth', 'service-notification']
+      })
+    );
+  });
+
+  test('should return empty matrix when no directories match regex filter', async () => {
+    // Setup inputs with regex filter that matches nothing
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'filter':
+          return '^nonexistent-.*';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {},
+        dir3: {}
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with empty matrix
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: []
+      })
+    );
+  });
+
+  test('should handle invalid regex pattern and throw error', async () => {
+    // Setup inputs with invalid regex
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'filter':
+          return '[invalid regex';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        dir1: {},
+        dir2: {}
+      }
+    });
+
+    // Execute the function and expect it to throw
+    await expect(run()).rejects.toThrow(/Invalid regex pattern in filter/);
+    expect(core.setFailed).toHaveBeenCalledWith(expect.stringMatching(/Invalid regex pattern in filter/));
+  });
+
+  test('should apply regex filter after exclude filter', async () => {
+    // Setup inputs with both exclude and regex filter
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'exclude':
+          return 'app-excluded';
+        case 'filter':
+          return '^app-.*';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem
+    mockFs({
+      'test-repo': {
+        'app-frontend': {},
+        'app-backend': {},
+        'app-excluded': {}, // Should be excluded by exclude list
+        'lib-common': {}, // Should be excluded by regex
+        'app-mobile': {}
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with directories that pass both filters
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        directory: ['app-backend', 'app-frontend', 'app-mobile']
+      })
+    );
+  });
+
+  test('should combine regex filter with metadata files', async () => {
+    // Setup inputs
+    core.getInput = jest.fn().mockImplementation((name) => {
+      switch (name) {
+        case 'path':
+          return './test-repo';
+        case 'filter':
+          return '^service-.*';
+        case 'metadata_file':
+          return 'package.json';
+        default:
+          return '';
+      }
+    });
+
+    // Setup mock filesystem with metadata files
+    mockFs({
+      'test-repo': {
+        'service-auth': {
+          'package.json': JSON.stringify({
+            name: 'auth-service',
+            version: '1.0.0'
+          })
+        },
+        'service-notification': {
+          'package.json': JSON.stringify({
+            name: 'notification-service',
+            version: '2.0.0'
+          })
+        },
+        'app-frontend': {
+          'package.json': JSON.stringify({
+            name: 'frontend-app',
+            version: '1.5.0'
+          })
+        }
+      }
+    });
+
+    // Execute the function
+    await run();
+
+    // Verify setOutput was called with only service directories and their metadata
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'matrix',
+      JSON.stringify({
+        include: [
+          {
+            directory: 'service-auth',
+            name: 'auth-service',
+            version: '1.0.0'
+          },
+          {
+            directory: 'service-notification',
+            name: 'notification-service',
+            version: '2.0.0'
+          }
+        ]
       })
     );
   });
