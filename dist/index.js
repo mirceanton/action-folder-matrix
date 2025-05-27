@@ -36749,15 +36749,30 @@ async function run() {
     const dirPath = core.getInput('path', { required: true });
     const includeHidden = core.getInput('include_hidden') === 'true';
     const excludeInput = core.getInput('exclude');
+    const filterInput = core.getInput('filter');
     const metadataFile = core.getInput('metadata_file');
     const changedOnly = core.getInput('changed-only') === 'true';
     const excludeList = excludeInput ? excludeInput.split(',').map((item) => item.trim()) : [];
     let matrixOutput;
 
+    // Validate and compile regex filter if provided
+    let filterRegex = null;
+    if (filterInput && filterInput.trim() !== '') {
+      try {
+        filterRegex = new RegExp(filterInput.trim());
+        core.debug(`Compiled regex filter: ${filterInput.trim()}`);
+      } catch (error) {
+        const errorMsg = `Invalid regex pattern in filter: ${filterInput.trim()}. Error: ${error.message}`;
+        core.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+    }
+
     core.info(`Configuration: {`);
     core.info(`  path: ${dirPath}`);
     core.info(`  include_hidden: ${includeHidden}`);
     core.info(`  exclude: ${excludeList.join(', ') || 'none'}`);
+    core.info(`  filter: ${filterInput || 'none'}`);
     core.info(`  metadata_file: ${metadataFile || 'none'}`);
     core.info(`  changed-only: ${changedOnly}`);
     core.info(`}`);
@@ -36804,6 +36819,11 @@ async function run() {
 
         if (excludeList.includes(dirent.name)) {
           core.info(`Skipping ${dirent.name}: excluded by exclude list`);
+          return false;
+        }
+
+        if (filterRegex && !filterRegex.test(dirent.name)) {
+          core.info(`Skipping ${dirent.name}: does not match filter pattern`);
           return false;
         }
 
