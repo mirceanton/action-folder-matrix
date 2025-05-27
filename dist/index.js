@@ -36673,14 +36673,14 @@ async function getChangedFiles(octokit, context) {
   const { owner, repo } = context.repo;
   let changedFiles = [];
 
-  core.info(`Getting changed files for ${context.eventName} event`);
+  core.debug(`Getting changed files for ${context.eventName} event`);
 
   if (context.eventName === 'push') {
     const commitSha = context.sha;
     core.debug(`Commit SHA: ${commitSha}`);
 
     try {
-      core.info(`Fetching changed files from commit ${commitSha}`);
+      core.debug(`Fetching changed files from commit ${commitSha}`);
       const { data: commit } = await octokit.rest.repos.getCommit({
         owner,
         repo,
@@ -36697,7 +36697,7 @@ async function getChangedFiles(octokit, context) {
     core.debug(`Pull request number: ${pullNumber}`);
 
     try {
-      core.info(`Fetching changed files from PR #${pullNumber}`);
+      core.debug(`Fetching changed files from PR #${pullNumber}`);
       const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
         owner,
         repo,
@@ -36714,7 +36714,7 @@ async function getChangedFiles(octokit, context) {
     core.warning(`Unsupported event type: ${context.eventName}. No changed files will be considered.`);
   }
 
-  core.info(`Found ${changedFiles.length} changed files`);
+  core.debug(`Found ${changedFiles.length} changed files`);
   return changedFiles;
 }
 
@@ -36746,8 +36746,6 @@ function directoryHasChanges(basePath, dirName, changedFiles) {
 
 async function run() {
   try {
-    core.info('Starting Folder Matrix Action');
-
     const dirPath = core.getInput('path', { required: true });
     const includeHidden = core.getInput('include_hidden') === 'true';
     const excludeInput = core.getInput('exclude');
@@ -36788,24 +36786,24 @@ async function run() {
       }
     }
 
-    core.info(`Scanning directory ${dirPath} for subdirectories`);
+    core.debug(`Scanning directory ${dirPath} for subdirectories`);
     const allEntries = fs.readdirSync(dirPath, { withFileTypes: true });
     core.debug(`Found ${allEntries.length} entries in directory`);
 
     const subdirectories = allEntries
       .filter((dirent) => {
         if (!dirent.isDirectory()) {
-          core.debug(`Skipping ${dirent.name}: not a directory`);
+          core.info(`Skipping ${dirent.name}: not a directory`);
           return false;
         }
 
         if (!includeHidden && dirent.name.startsWith('.')) {
-          core.debug(`Skipping ${dirent.name}: hidden directory`);
+          core.info(`Skipping ${dirent.name}: hidden directory`);
           return false;
         }
 
         if (excludeList.includes(dirent.name)) {
-          core.debug(`Skipping ${dirent.name}: excluded by exclude list`);
+          core.info(`Skipping ${dirent.name}: excluded by exclude list`);
           return false;
         }
 
@@ -36823,10 +36821,10 @@ async function run() {
       })
       .map((dirent) => dirent.name);
 
-    core.info(`Found ${subdirectories.length} subdirectories after filtering`);
+    core.debug(`Found ${subdirectories.length} subdirectories after filtering`);
 
     if (metadataFile && metadataFile.trim() !== '') {
-      core.info(`Reading metadata from ${metadataFile} in each subdirectory`);
+      core.debug(`Reading metadata from ${metadataFile} in each subdirectory`);
       const includeEntries = [];
 
       for (const dir of subdirectories) {
