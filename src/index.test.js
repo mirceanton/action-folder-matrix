@@ -1,7 +1,5 @@
 const mockFs = require('mock-fs');
 const core = require('@actions/core');
-const fs = require('fs');
-const path = require('path');
 const github = require('@actions/github');
 const { run } = require('./index');
 
