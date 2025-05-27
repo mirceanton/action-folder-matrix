@@ -94,7 +94,11 @@ async function run() {
     let filterRegex = null;
     if (filterInput && filterInput.trim() !== '') {
       try {
-        filterRegex = new RegExp(filterInput.trim());
+        const trimmedInput = filterInput.trim();
+        if (trimmedInput.length > 1000) {
+          core.error('Filter pattern too long (max 1000 characters)');
+        }
+        filterRegex = new RegExp(trimmedInput);
         core.debug(`Compiled regex filter: ${filterInput.trim()}`);
       } catch (error) {
         const errorMsg = `Invalid regex pattern in filter: ${filterInput.trim()}. Error: ${error.message}`;
