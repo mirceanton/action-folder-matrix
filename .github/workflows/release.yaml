@@ -47,7 +47,9 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
 
       - name: Create Release
-        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry-run == 'false' ) || (github.event_name == 'schedule') }}
+        if:
+          ${{ (github.event_name == 'workflow_dispatch' && inputs.dry-run == 'false' ) || (github.event_name ==
+          'schedule') }}
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           name: 'v${{ steps.release-metadata.outputs.next-version }}'
