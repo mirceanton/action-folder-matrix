@@ -42,7 +42,7 @@ jobs:
 
       - name: Generate Release Metadata
         id: release-metadata
-        uses: mirceanton/action-semver-metadata@31be2c0783a92d1e9356f32d4e22ac2066986216 # v1.0.1
+        uses: mirceanton/action-semver-metadata@b2b380118688d76e4867db485f29ecb8fd0f1220 # v1.0.2
         with:
           github-token: ${{ steps.app-token.outputs.token }}
 
