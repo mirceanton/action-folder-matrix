@@ -48,6 +48,6 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
           dry-run: |
             ${{ 
-              ( github.event.inputs.dry-run && github.event_name == 'workflow_dispatch' ) ||
+              ( github.event.inputs.dry-run == 'true' && github.event_name == 'workflow_dispatch' ) ||
               github.event_name == 'push'
             }}
