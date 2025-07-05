@@ -4,19 +4,21 @@ name: Release
 permissions: { contents: read }
 
 on:
-  schedule: [{ cron: '0 0 * * *' }] # wet run
+  schedule: [{ cron: '0 0 * * *' }]
+
   workflow_dispatch:
     inputs:
       dry-run:
         description: 'Dry run mode (no actual release)'
         required: false
-        default: false
+        default: true
         type: boolean
+
   push:
     paths:
       - .github/workflows/release.yaml
       - action.yml
-      - index.js
+      - "**.js"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
