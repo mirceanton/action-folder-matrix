@@ -37,5 +37,5 @@ outputs:
     description: JSON array of subdirectory names for use in matrix strategy
 
 runs:
-  using: node20
+  using: node24
   main: dist/index.js
