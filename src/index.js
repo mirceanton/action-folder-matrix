@@ -1,8 +1,9 @@
-const core = require('@actions/core');
-const fs = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
-const github = require('@actions/github');
+import * as core from '@actions/core';
+import fs from 'fs';
+import path from 'path';
+import yaml from 'js-yaml';
+import * as github from '@actions/github';
+import { fileURLToPath } from 'url';
 
 async function getChangedFiles(octokit, context) {
   const { owner, repo } = context.repo;
@@ -260,8 +261,9 @@ async function run() {
   }
 }
 
-if (require.main === module) {
+const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
+if (isMainModule) {
   run();
 }
 
-module.exports = { run };
+export { run };
