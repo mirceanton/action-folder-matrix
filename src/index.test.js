@@ -1,11 +1,31 @@
-const mockFs = require('mock-fs');
-const core = require('@actions/core');
-const github = require('@actions/github');
-const { run } = require('./index');
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import mockFs from 'mock-fs';
 
-// Mock the @actions/core and @actions/github modules
-jest.mock('@actions/core');
-jest.mock('@actions/github');
+// Mock the @actions/core and @actions/github modules before importing
+jest.unstable_mockModule('@actions/core', () => ({
+  getInput: jest.fn(),
+  setOutput: jest.fn(),
+  setFailed: jest.fn(),
+  info: jest.fn(),
+  debug: jest.fn(),
+  warning: jest.fn(),
+  error: jest.fn()
+}));
+
+jest.unstable_mockModule('@actions/github', () => ({
+  context: {
+    eventName: 'push',
+    repo: { owner: 'testowner', repo: 'testrepo' },
+    sha: 'abc123',
+    payload: { pull_request: { number: 123 } }
+  },
+  getOctokit: jest.fn()
+}));
+
+// Import mocked modules and the function under test
+const core = await import('@actions/core');
+const github = await import('@actions/github');
+const { run } = await import('./index.js');
 
 // Save original implementation to restore later
 const originalConsoleLog = console.log;
@@ -20,7 +40,7 @@ describe('Folder Matrix Action', () => {
     console.log = jest.fn();
 
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -41,24 +61,11 @@ describe('Folder Matrix Action', () => {
       }
     });
 
-    // Setup core.setOutput mock
-    core.setOutput = jest.fn();
-    core.setFailed = jest.fn();
-
     // Mock GitHub context
-    github.context = {
-      eventName: 'push',
-      repo: {
-        owner: 'testowner',
-        repo: 'testrepo'
-      },
-      sha: 'abc123',
-      payload: {
-        pull_request: {
-          number: 123
-        }
-      }
-    };
+    github.context.eventName = 'push';
+    github.context.repo = { owner: 'testowner', repo: 'testrepo' };
+    github.context.sha = 'abc123';
+    github.context.payload = { pull_request: { number: 123 } };
 
     // Mock Octokit
     const mockOctokit = {
@@ -76,11 +83,11 @@ describe('Folder Matrix Action', () => {
           })
         }
       },
-      paginate: jest.fn().mockImplementation(async (method) => {
+      paginate: jest.fn().mockImplementation(async () => {
         return [];
       })
     };
-    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+    github.getOctokit.mockReturnValue(mockOctokit);
 
     // Setup process.env
     process.env.GITHUB_TOKEN = 'mock-env-token';
@@ -145,7 +152,7 @@ describe('Folder Matrix Action', () => {
 
   test('should include hidden directories when include-hidden is true', async () => {
     // Setup inputs with include-hidden = true
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -179,7 +186,7 @@ describe('Folder Matrix Action', () => {
 
   test('should exclude directories specified in exclude parameter', async () => {
     // Setup inputs with exclude = dir2
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -213,7 +220,7 @@ describe('Folder Matrix Action', () => {
   });
 
   test('should filter directories using regex pattern', async () => {
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -249,7 +256,7 @@ describe('Folder Matrix Action', () => {
 
   test('should filter directories using complex regex pattern', async () => {
     // Setup inputs with complex regex filter
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -286,7 +293,7 @@ describe('Folder Matrix Action', () => {
 
   test('should return empty matrix when no directories match regex filter', async () => {
     // Setup inputs with regex filter that matches nothing
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -320,7 +327,7 @@ describe('Folder Matrix Action', () => {
 
   test('should handle invalid regex pattern and throw error', async () => {
     // Setup inputs with invalid regex
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -346,7 +353,7 @@ describe('Folder Matrix Action', () => {
 
   test('should apply regex filter after exclude filter', async () => {
     // Setup inputs with both exclude and regex filter
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -384,7 +391,7 @@ describe('Folder Matrix Action', () => {
 
   test('should combine regex filter with metadata files', async () => {
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -446,7 +453,7 @@ describe('Folder Matrix Action', () => {
 
   test('should handle error when directory does not exist', async () => {
     // Setup inputs with a non-existent directory
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './non-existent';
@@ -468,7 +475,7 @@ describe('Folder Matrix Action', () => {
   // Metadata file tests
   test('should read JSON metadata files and include in matrix', async () => {
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -530,7 +537,7 @@ describe('Folder Matrix Action', () => {
 
   test('should read YAML metadata files and include in matrix', async () => {
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -584,7 +591,7 @@ describe('Folder Matrix Action', () => {
 
   test('should handle invalid JSON metadata gracefully', async () => {
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -630,7 +637,7 @@ describe('Folder Matrix Action', () => {
 
   test('should handle invalid YAML metadata gracefully', async () => {
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -662,7 +669,7 @@ describe('Folder Matrix Action', () => {
 
   test('should not override directory field from metadata', async () => {
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -704,7 +711,7 @@ describe('Folder Matrix Action', () => {
 
   test('should handle unsupported metadata file formats', async () => {
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -766,7 +773,7 @@ describe('Folder Matrix Action', () => {
   test('should throw error when changed-only is true but no GitHub token is provided', async () => {
     // Remove token from environment and input
     delete process.env.GITHUB_TOKEN;
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -794,7 +801,7 @@ describe('Folder Matrix Action', () => {
 
   test('should filter directories based on changed files for push event', async () => {
     // Setup inputs for changed-only
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -832,7 +839,7 @@ describe('Folder Matrix Action', () => {
         }
       }
     };
-    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+    github.getOctokit.mockReturnValue(mockOctokit);
 
     // Execute the function
     await run();
@@ -848,7 +855,7 @@ describe('Folder Matrix Action', () => {
 
   test('should filter directories based on changed files for pull request event', async () => {
     // Setup inputs for changed-only
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -880,11 +887,11 @@ describe('Folder Matrix Action', () => {
           })
         }
       },
-      paginate: jest.fn().mockImplementation(async (method) => {
+      paginate: jest.fn().mockImplementation(async () => {
         return [{ filename: 'test-repo/dir2/file2.txt' }];
       })
     };
-    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+    github.getOctokit.mockReturnValue(mockOctokit);
 
     // Execute the function
     await run();
@@ -900,7 +907,7 @@ describe('Folder Matrix Action', () => {
 
   test('should handle empty changed files result', async () => {
     // Setup inputs for changed-only
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -931,7 +938,7 @@ describe('Folder Matrix Action', () => {
         }
       }
     };
-    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+    github.getOctokit.mockReturnValue(mockOctokit);
 
     // Execute the function
     await run();
@@ -947,7 +954,7 @@ describe('Folder Matrix Action', () => {
 
   test('should handle API errors gracefully', async () => {
     // Setup inputs for changed-only
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -974,7 +981,7 @@ describe('Folder Matrix Action', () => {
         }
       }
     };
-    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+    github.getOctokit.mockReturnValue(mockOctokit);
 
     // Execute the function
     await run();
@@ -990,7 +997,7 @@ describe('Folder Matrix Action', () => {
 
   test('should include changed directories with metadata files', async () => {
     // Setup inputs
-    core.getInput = jest.fn().mockImplementation((name) => {
+    core.getInput.mockImplementation((name) => {
       switch (name) {
         case 'path':
           return './test-repo';
@@ -1039,7 +1046,7 @@ describe('Folder Matrix Action', () => {
         }
       }
     };
-    github.getOctokit = jest.fn().mockReturnValue(mockOctokit);
+    github.getOctokit.mockReturnValue(mockOctokit);
 
     // Execute the function
     await run();
