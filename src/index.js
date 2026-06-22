@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import fs from 'fs';
 import path from 'path';
-import yaml from 'js-yaml';
+import { load } from 'js-yaml';
 import * as github from '@actions/github';
 import { fileURLToPath } from 'url';
 
@@ -207,7 +207,7 @@ async function run() {
                 break;
               case '.yaml':
               case '.yml':
-                metadata = yaml.load(fileContent);
+                metadata = load(fileContent);
                 break;
               default:
                 core.warning(`Unsupported metadata file format: ${fileExt}. Skipping metadata for ${dir}.`);
