@@ -39414,7 +39414,7 @@ async function run() {
       } catch (error) {
         const errorMsg = `Invalid regex pattern in filter: ${filterInput.trim()}. Error: ${error.message}`;
         core_error(errorMsg);
-        throw new Error(errorMsg);
+        throw new Error(errorMsg, { cause: error });
       }
     }
 
