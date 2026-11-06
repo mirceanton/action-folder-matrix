@@ -1,6 +1,12 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Temp Lockfile Refresh
+# TEMPORARY branch helper (deleted again by this job's own commit).
+#
+# The branch was authored through the GitHub contents API from a sandbox that can
+# only write whole files, so it cannot emit package-lock.json (236 kB) byte-exactly.
+# This job applies the reviewed test-harness patch, refreshes the lockfile, and
+# commits the result - then removes itself and the patch from the tree.
+name: Temp Branch Materializer
 permissions: { contents: write }
 
 on:
@@ -8,10 +14,30 @@ on:
     branches: ['test/memfs-harness']
 
 jobs:
-  refresh:
+  materialize:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v5
-      - run: npm install --package-lock-only --no-audit --no-fund
-      - run: git commit -am 'chore(deps): refresh package-lock.json' && git push
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup mise
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
+        with:
+          cache: true
+          cache_key: 'mise'
+
+      - name: Apply test harness patch
+        run: git apply --verbose .github/tmp/harness.patch
+
+      - name: Refresh package-lock.json
+        run: npm install --package-lock-only --no-audit --no-fund
+
+      - name: Commit, self-delete, push
+        run: |
+          set -euo pipefail
+          git rm -q .github/tmp/harness.patch .github/workflows/zz-temp-lock-refresh.yaml
+          git add package-lock.json src/index.test.js
+          git -c user.name='mr-borboto[bot]' \
+              -c user.email='170036086+mr-borboto[bot]@users.noreply.github.com' \
+              commit -m 'test: replace mock-fs with a memfs-backed fs module mock'
+          git push
