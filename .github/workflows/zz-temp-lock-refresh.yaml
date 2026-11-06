@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Temp Lockfile Refresh
+permissions: { contents: write }
+
+on:
+  push:
+    branches: ['test/memfs-harness']
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - run: npm install --package-lock-only --no-audit --no-fund
+      - run: git commit -am 'chore(deps): refresh package-lock.json' && git push
