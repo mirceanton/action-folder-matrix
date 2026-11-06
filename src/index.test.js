@@ -1,5 +1,27 @@
 import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import mockFs from 'mock-fs';
+import { Volume, createFsFromVolume } from 'memfs';
+
+// The action calls `fs` directly, so swap the module for an in-memory volume
+// instead of touching the real disk. memfs only replaces this module in the
+// jest registry (no monkey-patching of Node internals), which keeps the suite
+// working across Node majors.
+const volume = new Volume();
+const memfs = createFsFromVolume(volume);
+
+jest.unstable_mockModule('fs', () => ({ default: memfs }));
+
+/**
+ * Populate the in-memory filesystem with a fixture tree.
+ *
+ * Paths are created relative to `process.cwd()`, so relative inputs such as
+ * './test-repo' resolve exactly like they do against the real filesystem.
+ * @param {object} tree Nested directory structure; `{}`/`null` are directories
+ *   and strings are file contents.
+ */
+function mockFs(tree) {
+  volume.reset();
+  volume.fromNestedJSON(tree, process.cwd());
+}
 
 // Mock the @actions/core and @actions/github modules before importing
 jest.unstable_mockModule('@actions/core', () => ({
@@ -94,8 +116,8 @@ describe('Folder Matrix Action', () => {
   });
 
   afterEach(() => {
-    // Restore filesystem
-    mockFs.restore();
+    // Drop the fixture tree so nothing leaks between tests
+    volume.reset();
 
     // Restore console.log
     console.log = originalConsoleLog;
